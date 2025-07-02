@@ -1,0 +1,2 @@
+include src/evox/problems/numerical/data/*.json
+include src/evox/problems/numerical/cec2022_input_data/*.txt
