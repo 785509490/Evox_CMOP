@@ -723,6 +723,56 @@ class ExperimentAnalyzer:
                     }
         return table_data
 
+    def calculate_final_time_table(self):
+        """计算所有算法在所有问题上的最终耗时统计表"""
+        algorithms = sorted(self.results.keys())
+        all_problems = set()
+        for algo_data in self.results.values():
+            all_problems.update(algo_data.keys())
+        problems = sorted(all_problems)
+
+        table_data = {
+            'algorithms': algorithms,
+            'problems': problems,
+            'data': {},
+        }
+
+        for algorithm in algorithms:
+            table_data['data'][algorithm] = {}
+            for problem in problems:
+                if problem not in self.results[algorithm]:
+                    table_data['data'][algorithm][problem] = {
+                        'mean': np.nan, 'std': np.nan, 'runs': 0,
+                    }
+                    continue
+
+                experiment_data_list = self.results[algorithm][problem]
+                if not experiment_data_list:
+                    table_data['data'][algorithm][problem] = {
+                        'mean': np.nan, 'std': np.nan, 'runs': 0,
+                    }
+                    continue
+
+                # 提取所有实验的最终耗时
+                final_times = []
+                for exp_data in experiment_data_list:
+                    time_sequence = exp_data['time']
+                    if time_sequence and not np.isnan(time_sequence[-1]):
+                        final_times.append(time_sequence[-1])
+
+                if final_times:
+                    table_data['data'][algorithm][problem] = {
+                        'mean': np.mean(final_times),
+                        'std': np.std(final_times),
+                        'runs': len(final_times)
+                    }
+                else:
+                    table_data['data'][algorithm][problem] = {
+                        'mean': np.nan, 'std': np.nan, 'runs': 0
+                    }
+
+        return table_data
+
     def plot_igd_comparison(self, stats: dict, problem_name: str = "LIRCMOP1",
                             x_axis: str = "generation", save_path: str = None):
         """绘制IGD对比图"""
@@ -795,13 +845,14 @@ def main():
     print("2. Single problem convergence analysis")
     print("3. Both analyses")
     print("4. Multi-problem final IGD table(with Time)")
+    print("5. Multi-problem final time consumption table analysis")
 
-    choice = input("Enter your choice (1/2/3) [default: 1]: ").strip() or "1"
+    choice = input("Enter your choice (1/2/3/4/5) [default: 1]: ").strip() or "1"
     if choice == "4":
         target_time = float(input("Enter target time (seconds): ").strip() or "10")
         # 多问题表格分析
         print("\n" + "=" * 60)
-        print("MULTI-PROBLEM FINAL IGD TABLE ANALYSIS")
+        print("MULTI-PROBLEM FINAL IGD TABLE ANALYSIS(with Time)")
         print("=" * 60)
 
         # 加载所有数据
@@ -813,6 +864,17 @@ def main():
         table_data = analyzer.calculate_igd_at_time_table(target_time)
         analyzer.print_final_igd_table(table_data)
         analyzer.save_final_igd_table(table_data, f"igd_at_{target_time}s")
+    elif choice == "5":
+        print("\n" + "=" * 60)
+        print("MULTI-PROBLEM FINAL TIME CONSUMPTION TABLE ANALYSIS")
+        print("=" * 60)
+        results = analyzer.load_experiment_data()
+        if not results:
+            print("No experiment data found!")
+            return
+        time_table_data = analyzer.calculate_final_time_table()
+        analyzer.print_final_igd_table(time_table_data)
+        analyzer.save_final_igd_table(time_table_data, "final_time_comparison")
     elif choice == "1":
         # 多问题表格分析
         print("\n" + "=" * 60)
